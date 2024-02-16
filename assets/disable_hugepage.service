@@ -1,0 +1,13 @@
+[Unit]
+Description=Disable transparent hugepage
+Requires=local-fs
+After=local-fs
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/usr/local/bin/disable_hugepage.bash
+
+[Install]
+WantedBy=multi-user.target
+

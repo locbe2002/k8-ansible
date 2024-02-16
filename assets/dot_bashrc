@@ -1,0 +1,25 @@
+# .bashrc
+
+# User specific aliases and functions
+
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+        . /etc/bashrc
+fi
+
+set -o vi
+
+# env
+export NO_PROXY=127.0.0.1/8,10.15.40.0/16,172.17.0.0/16,192.0.0.0/8,10.0.0.0/8,openet.com,.svc,.svc.cluster.local,.cluster.local
+export http_proxy=http://genproxy.corp.amdocs.com:8080
+export HTTPS_PROXY=http://genproxy.corp.amdocs.com:8080
+export https_proxy=http://genproxy.corp.amdocs.com:8080
+export no_proxy=127.0.0.1/8,10.15.40.0/16,172.17.0.0/16,192.0.0.0/8,10.0.0.0/8,openet.com,.svc,.svc.cluster.local,.cluster.local
+export HTTP_PROXY=http://genproxy.corp.amdocs.com:8080
+
+alias k=kubectl
+

@@ -1,0 +1,37 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Docker specific un-install 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    varsfile: "{{ wd }}/proj_vars"
+    sleep10: 10
+  vars_files:
+    - "{{ varsfile }}"
+  remote_user: root
+
+  tasks:
+
+# Note, later we will remove dirs...
+#
+  - name: Disable and stop docker
+    ansible.builtin.systemd:
+      name: docker.service
+      state: stopped
+      enabled: no
+    ignore_errors: yes
+
+  - name: Unistall docker 
+    yum:
+      name: 
+        - docker-ce
+        - docker-ce-cli
+        - docker-scan-plugin
+        - containerd.io 
+      state: absent 
+    ignore_errors: yes
+
+
+

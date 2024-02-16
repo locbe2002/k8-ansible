@@ -1,0 +1,27 @@
+---
+# Run with: ansible-playbook -i inventory copy_files....yaml 
+#
+- name: Misc setup activities 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    localcksum: 599069361_257317
+  remote_user: root
+  
+  tasks:
+
+  - name: Copy 20auto-upgrades 
+    copy:
+      src: "{{ wd + '/assets/20auto-upgrades' }}"
+      dest: /etc/apt/apt.conf.d/ 
+      mode: 0444
+
+  - name: Put on hold packages marked for upgrade 
+    shell: |
+      for pkg in $(apt list --upgradable | awk -F/ '{print $1}'); do
+        apt-mark hold $pkg
+      done
+    args:
+      executable: /bin/bash
+
+

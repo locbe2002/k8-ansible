@@ -1,0 +1,2 @@
+#Allow user fworks to sudo
+fworks ALL=(ALL) NOPASSWD:ALL

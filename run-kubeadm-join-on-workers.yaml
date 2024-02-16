@@ -1,0 +1,36 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Run kubeadm join on worker nodes 
+  hosts: workers
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    varsfile: "{{ wd }}/proj_vars"
+    sleep10: 10
+    #kubadmjoin: "{{ lookup('file', {{ joinsavefile }}) }}"
+    kubadmjoin: "{{ lookup('file', '/tmp/kubeadmjoincmd.yaml') }}"
+    #kubeadmjoin: "kubeadm join 100.66.22.1:6443 --token bmeci6.pktpq9e2trt23ahy --discovery-token-ca-cert-hash sha256:cd64f2b20be597033f08c1cd34510f763b7e159dca88a1b620a0d6580566b61c "
+  vars_files:
+    "{{ varsfile }}"
+
+  remote_user: root
+
+  tasks:
+
+  - name: Print msg
+    ansible.builtin.debug:
+      msg: "Running kubeadm join on workers: {{ kubadmjoin }}" 
+      #msg: System "Running kubeadm join on workers" 
+
+  #- name: Get join token  -- will need to read this from a file ...
+  #  shell: kubeadm token create --print-join-command 
+  #  register: kubeadmjoin 
+
+  - name: Join workers to cluster 
+    shell: "{{ kubadmjoin }}" 
+    register: result
+
+  - name: Print result 
+    ansible.builtin.debug:
+      msg: "{{ result }}" 

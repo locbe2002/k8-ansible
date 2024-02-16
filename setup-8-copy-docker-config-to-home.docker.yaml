@@ -1,0 +1,41 @@
+---
+# Run with: ansible-playbook -i inventory copy_files....yaml 
+#
+- name: Copy files - Note modify the files to copy!!! 
+  hosts: all 
+  vars:
+    dummy1: 80
+    dummy2: 200
+    wd: "{{ lookup('pipe', 'pwd') }}"
+  remote_user: root
+
+  tasks:
+
+  - name: Create dir /root/.docker
+    ansible.builtin.file:
+      path: /root/.docker 
+      state: directory
+      mode: '0755' 
+
+
+  - name: Create dir /home/fworks/.docker
+    ansible.builtin.file:
+      path: /home/fworks/.docker 
+      state: directory
+      mode: '0755' 
+      owner: fworks 
+      group: fworks        
+
+  - name: copy file docker config.json to root 
+    copy:
+      src: "{{ wd + '/assets/docker_config.json' }}" 
+      dest: /root/.docker/config.json
+      mode: 0644
+
+  - name: copy file docker config.json to fworks 
+    copy:
+      src: "{{ wd + '/assets/docker_config.json' }}" 
+      dest: /home/fworks/.docker/config.json
+      owner: fworks 
+      group: fworks        
+

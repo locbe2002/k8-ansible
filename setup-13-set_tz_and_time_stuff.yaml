@@ -1,0 +1,30 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# Here we add usee fworks, we give it sudo, we set vm.overcommit
+- name: Set TZ to UTC and set rtc stuff 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+  remote_user: root
+
+  tasks:
+# Following is needed if we work with Calico
+  - name: Set TZ to UTC 
+    shell: 
+      timedatectl set-timezone UTC 
+
+  - name: Add sleep time of 4 sec after TZ change 
+    pause:
+      seconds: 4
+
+  - name: RTC to 0 
+    shell: 
+      timedatectl set-local-rtc 0  
+

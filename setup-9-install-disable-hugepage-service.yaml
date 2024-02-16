@@ -1,0 +1,37 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Disable hugepage service install 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root
+
+  tasks:
+# Following is needed if we work with Calico
+  - name: Copy disable hugepage service file 
+    copy:
+      src: "{{ assets }}/disable_hugepage.service"
+      dest: /usr/lib/systemd/system/disable_hugepage.service
+      mode: '0644'
+    
+  - name: Copy disable hugepage script 
+    copy:
+      src: "{{ assets }}/disable_hugepage.bash"
+      dest: /usr/local/bin/disable_hugepage.bash 
+      mode: '0755'
+   
+  - name: Enable and run disable_hugepage service 
+    ansible.builtin.systemd:
+      name: disable_hugepage.service
+      state: started
+      enabled: yes 
+

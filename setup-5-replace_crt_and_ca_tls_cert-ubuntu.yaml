@@ -1,0 +1,57 @@
+---
+# Run with: ansible-playbook -i inventory copy_files....yaml 
+#
+- name: Copy crt and ca bundles files (replace...)
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    localcksum: 599069361_257317
+  remote_user: root
+  
+  tasks:
+
+  - name: Copy ca and crt to /etc/ssl/certs 
+    copy:
+       src: "{{ wd + '/assets/ca-bundle.trust.crt' }}"
+       dest: /etc/ssl/certs/ca-bundle.trust.crt
+       mode: 0444
+
+  - name: Copy ca and crt to /etc/ssl/certs 
+    copy:
+       src: "{{ wd + '/assets/tls-ca-bundle.pem' }}"
+       dest: /etc/ssl/certs/tls-ca-bundle.pem 
+       mode: 0444
+
+  - name: Pause for 3 seconds 
+    ansible.builtin.pause:
+      seconds: 3
+
+  - name: Exec update-ca-certificates 
+    shell: /usr/sbin/update-ca-certificates 
+
+  - name: Pause for 3 seconds 
+    ansible.builtin.pause:
+      seconds: 3
+
+  - name: Copy ca and crt to /usr/local/share/ca-certificates
+    copy:
+       src: '{{item}}'
+       dest: '/usr/local/share/ca-certificates'
+       mode: 0644
+       remote_src: yes
+    loop:
+      - /etc/ssl/certs/tls-ca-bundle.pem
+      - /etc/ssl/certs/ca-bundle.trust.crt 
+      - /etc/ssl/certs/ca-certificates.crt 
+
+# Adding docker restartt temporarily
+  - name: Restart docker
+    ansible.builtin.systemd:
+       name: docker.service
+       state: restarted
+
+  - name: Restart contaierd 
+    ansible.builtin.systemd:
+       name: containerd.service
+       state: restarted
+

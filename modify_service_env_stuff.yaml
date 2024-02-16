@@ -1,0 +1,95 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Docker and K8s base install 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root
+
+  tasks:
+# Following is needed if we work with Calico
+
+  - name: Copy proxy env file to /etc/environment 
+    copy:
+      src: "{{ assets }}/{{ svc_env_proxy }}"
+      dest: /etc/environment
+
+  - name: Copy proxy env file to sysconfig 
+    copy:
+      src: "{{ assets }}/{{ svc_env_proxy }}"
+      dest: "/etc/sysconfig/{{ svc_env_proxy }}"
+
+  - name: Just force systemd to reread configs (2.4 and above)
+    ansible.builtin.systemd:
+      daemon_reload: yes 
+
+  - name: Restart containerd 
+    ansible.builtin.systemd:
+      name: containerd.service
+      state: restarted
+
+  - name: Sleep betwen containerd restart and docker restart
+    pause:
+      seconds: 10 
+
+  - name: Restart docker
+    ansible.builtin.systemd:
+      name: docker.service
+      state: restarted
+
+  - name: Print msg about sleep before kubelete enable 
+    ansible.builtin.debug:
+      msg: System "Will sleep for 30 seconds, check on app1 if kubelete exists..." 
+
+  - name: Sleep betwen Docker restart and containerd restart
+    pause:
+      seconds: 30 
+
+  - name: Enable kubelet 
+    ansible.builtin.systemd:
+      name: kubelet.service
+      enabled: yes
+
+  - name: systemctl daemon reload 
+    ansible.builtin.systemd:
+      daemon_reload: yes 
+
+  - name: Enable and restart docker
+    ansible.builtin.systemd:
+      name: docker.service
+      state: started
+
+  - name: Print msg about sleep 
+    ansible.builtin.debug:
+      msg: System "Just restarted Docker will sleep 8 seconds before restarting Kubernetes" 
+
+  - name: Sleep betwen Docker restart and containerd restart
+    pause:
+      seconds: 8 
+
+  - name: Enable and restart containerd 
+    ansible.builtin.systemd:
+      name: containerd.service
+      state: started
+      enabled: yes 
+
+  - name: Sleep betwen containerd restart and Kubernetes restart
+    pause:
+      seconds: 8
+ 
+  - name: Restart kubelet 
+    ansible.builtin.systemd:
+      name: kubelet.service
+      state: started
+      enabled: yes 
+

@@ -1,0 +1,140 @@
+---
+# Run with: ansible-playbook -i inventory pbfile
+# To be run on master - it runs kubeadm init + set the calico plugin  
+- name: Initialize kubernetes with kubeadm 
+  hosts: master 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    varsfile: "{{ wd }}/proj_vars"
+    remotewd: /root/docker_k8s
+    kubeadm_init_succ_msg: "Your Kubernetes control-plane has initialized successfully"
+    sleep20: 30
+    sleep300: 300
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+    #kubeadm_result_file: /home/forge/ansible/vfiot/kubeadm_result.txt
+    #local_kubeadm_result_file: "{{ wd }}/kubeadm_result.txt"
+    #remote_kubeadm_result_file: "{{ remotewd }}/kubeadm_result.txt"
+    remote_kubeadm_result_file: "{{ remotewd + '/kubeadm_result_' + zdt +  '.txt' }}"
+    local_kubeadm_result_file: "{{ wd + '/kubeadm_result_' + zdt +  '.txt' }}"
+    #local_kubeadm_result_file: "{{ wd + '/kubeadm_result.txt' }}"
+  vars_files:
+    - "{{ varsfile }}"
+  remote_user: root
+
+  tasks:
+  - name: Make sure kubelet is running
+    ansible.builtin.systemd:
+      name: kubelet.service
+      state: started 
+
+  - name: Run kubeadm init 
+    shell: kubeadm init --pod-network-cidr="{{ net_pod_cidr }}" 
+    #shell: kubeadm init --config /root/docker_k8s/kubelet_config_override.yaml --v=5
+    register: result
+    until: result.stdout.find(" {{ kubeadm_init_succ_msg }}") != -1
+    #until: result.rc == 0
+    retries: 0
+    delay: "{{ sleep300 }}" 
+
+  - name: Print info where result of kubeadm init wil be saved 
+    ansible.builtin.debug:
+      msg: 
+        - "####################################################################"
+        - "Result of Kubeadm init will be written into remote file: {{ remote_kubeadm_result_file }}" 
+        - "Result of Kubeadm init will be written into local file: {{ local_kubeadm_result_file }}" 
+        - "####################################################################"
+
+  - name: Print result of kubeadm init 
+    ansible.builtin.debug:
+      msg: "{{ result }}"
+
+  - name: Print result of kubeadm into a file in remote node 
+    copy: content="{{ result }}" dest="{{ remote_kubeadm_result_file }}"
+
+  - name: Print result of kubeadm into local ansible machine 
+    local_action: copy content="{{ result }}" dest="{{ local_kubeadm_result_file }}"
+
+  - name: Print message that will exec playbook IF kubeadm is not success 
+    ansible.builtin.debug:
+      msg: 
+        - "####################################################################"
+        - "It seems kubadm init failedm will exit now"
+        - "chek errors in local file: {{ local_kubeadm_result_file }}" 
+        - "####################################################################"
+    #when: ' kubeadm_init_succ_msg|string not in result'
+    when: result.stdout.find("control-plane has initialized successfully") == -1
+    #when: result.stdout.find("{{ succ_msg }}") == -1 
+
+  - meta: end_play
+    when: result.stdout.find("control-plane has initialized successfully") == -1
+    #when: ' kubeadm_init_succ_msg|string not in result'
+    #when: result.stdout.find("{{ succ_msg }}") == -1 
+
+  - name: Print msg all good and we continue exec... 
+    ansible.builtin.debug:
+      msg: 
+        - "####################################################################"
+        - "All good, we continue execution of playbook..." 
+        - "Will sleep a few seconds to let things stabilize"
+        - "####################################################################"
+
+  - name: Add sleep time of 20 sec to let network stabilize 
+    pause:
+      seconds: 20
+
+  - name: Creates directory
+    file:
+      path: /root/.kube
+      state: directory
+
+  #- name: Creates directory
+  #  file:
+  #    path: /home/supp-lab-001/.kube
+  #    state: directory
+  #    owner: supp-lab-001
+  #    group: supp-lab-001
+
+  - name: Creates directory
+    file:
+      path: /home/fworks/.kube
+      state: directory
+      owner: fworks 
+      group: fworks 
+
+  - name: Copy the kubeconfig file 
+    ansible.builtin.copy:
+      src:  /etc/kubernetes/admin.conf
+      dest: /root/.kube/config 
+      remote_src: yes
+      mode: "0400"
+
+  #- name: Copy the kubeconfig file 
+  #  ansible.builtin.copy:
+  #    src:  /etc/kubernetes/admin.conf
+  #    dest: /home/supp-lab-001/.kube/config 
+  #    remote_src: yes
+  #    owner: supp-lab-001
+  #    group: supp-lab-001
+  #    mode: "0400"
+
+  - name: Copy the kubeconfig file 
+    ansible.builtin.copy:
+      src:  /etc/kubernetes/admin.conf
+      dest: /home/fworks/.kube/config 
+      remote_src: yes
+      owner: fworks 
+      group: fworks 
+      mode: "0400"
+
+  - name: Add sleep time of 20 sec to let network stabilize 
+    pause:
+      seconds: 20
+
+# Print the kubeadm join command into a file to be used later by kubeadm join play
+  - name: get kubeadm join command
+    shell: kubeadm token create --print-join-command
+    register: kubeadmjoincmd
+
+  - name: Save kubeadm join command to tmp file
+    local_action: copy content="{{ kubeadmjoincmd.stdout_lines[0] }}" dest="{{ joinsavefile }}"
+

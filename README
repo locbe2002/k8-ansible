@@ -1,0 +1,211 @@
+Ansible install k8s cluster
+Section 1: pre-setup, Prepare VM MANUALLY:
+Note: See doc  Install Docker and K8s cluster onpremise lab VMs_v1_021723.docx for details.
+
+1) Login to each VM as root and fix .bashrc to include proxy, and source it
+2) Run yum update -y
+3) Add to root in .ssh/authorized_keys the public key of user forge in app-56.
+4) Ceate partition sda3 if not created already by IT 
+5) Disable swapping by commenting the swap entry in /etc/fstab 
+
+From here rest of setup is done with Ansible…
+  
+------
+Notes per install on 05/16/22:
+I had 2 issues: 
+1) I had to disable kubernetes pgp ceck - I modified ansibl file for this
+2) There was an error with yum rep art-epel, I too the cache file for art* and dependencies.openet.com*
+ from app 1 and untared it under /var/cache/yum/x86_64/7. Need to investigate and create ansible file for this.
+
+Prep before install (Setup), most of these tasks need to be run once, or when some basic stuff chnages.
+Note: Future versions should combine all these setup scripts into a single script.
+
+-----------------
+1) Login to Ansible VM (currently dub-opnt-supp56) as user fworks.
+
+2) cd to Ansible base directory:
+cd ansible
+
+3) Clone the cluster install repo, this will create a new directory ansible_k8s_cluster_install:
+git clone ssh://git@bitbucket.openet.com:7999/etad/ansible_k8s_cluster_install.git
+Note: this will create a directory ansible_k8s_cluster_install
+
+3a) cd into the cloned repo that contains all Ansible scripts:
+cd ansible_k8s_cluster_install
+
+3b) Edit the inventory file to include ONLY the VMs you were provided for the cluster.
+Note: Step 3b is VERY IMPORTANT, so you make sure you modify things ONLY on cluster VMs.
+
+4) Disable selinux, firewalld and create several directories we will use:
+ansible-playbook -i inventory pre-setup-1-disable-selinux-firewalld_and_misc_dirs.yaml
+Note: This will disable also firewalld
+
+4a) Restart NOW the VM in order to pick the selinux change.
+
+Note: Following steps/scripts 5 – 15 can be run by a single script: 
+run_all_setup_scripts.bash
+
+5) Optional if needed: Uninstall docker that comes with VM:
+ansible-playbook -i inventory setup-2-uninstall-docker-specific.yaml
+
+6) Optional if needed: Rename kubectl command that comes with VM:
+ansible-playbook -i inventory setup-3-kubectl_docker_usr_local_bin.yaml
+
+7) Update /etc/hosts file with all lab VMs:
+ansible-playbook -i inventory setup-4-update_etc_hosts_file.yaml
+
+8) Replace default certificates, something is wrong with them:
+ansible-playbook -i inventory setup-5-replace_crt_and_ca_tls_cert.yaml
+
+9) Set /etc/bashrc with all proxy stuff needed:
+aansible-playbook -i inventory setup-6-copy_etc_environment.yaml
+
+10) Create user fworks and config some basics for it:
+ansible-playbook -i inventory create-user-fworks.yaml
+Note: This script does the following:
+Create user fworks
+Add appropriate ~/.ssh/authorized_keys file to fworks
+Copy fworks file to /etc/sudoers.d, so user fworks can sudo.
+
+11) Copy config.json to ~/docker for root and fworks users in cluster VMs:
+ansible-playbook -i inventory setup-8-copy-docker-config-to-home.docker.yaml
+
+12) Disable hugepage usage where voltdb will run (or on all nodes?):
+ansible-playbook -i inventory setup-9-install-disable-hugepage-service.yaml
+Note: I was not sure about this one, it is needed for voltdb, but I run it on all...
+
+13) Disable vm over-commit:
+ansible-playbook -i inventory setup-10-set-vm-overcommit.yaml
+
+14) Install needed Python packages:
+ansible-playbook -i inventory 11-setup-install-pip-stuff.yaml
+
+15) Install ntp
+ansible-playbook -i inventory setup-12-install_and_enable_ntp.yaml
+
+-----------------
+-----------------
+
+Section 2: Uninstall procedure - exec when needed
+Uninstall:
+0) TODO: Uninstall all Helm charts in all namespaces
+Run uninstall-vfiot-lab.bash on master where you downloaded the BB lab package.
+
+1)  ansible-playbook -i inventory uninstall-docker-and-k8s-master.yaml //This runs kubeadm reset ...
+
+2)  ansible-playbook -i inventory uninstall-docker-and-k8s-workers.yaml
+
+3) ansible-playbook -i inventory flush_iptables_all_nodes.yaml
+Note: To run on single node:  ansible-playbook -i inventory --limit 'master'  flush_iptables_all_nodes.yaml
+
+4) ansible-playbook -i inventory remove_bridges_and_links.yaml
+
+5) Optional: Restart VMs here
+
+-----------
+Section 3: Install Docker and k8s cluster
+Pre-install: (VERY IMPORTANT!!)
+Edit files inventory and proj_vars to include correct VMs for this project and correct variables!!
+Install: 
+1) ansible-playbook -i inventory install-docker_and-k8s-base-all-nodes.yaml
+Note: kubelet shows failed at this step
+
+2) Init the k8s cluster: 
+ansible-playbook -i inventory run-kubeadm-init-on-master-nonet.yaml
+Note: Before running this, verify in vars file versions and pods CIDR are what you want
+Note: No cni apply here!
+Note: Wait until you see tha all pods in kubeys run (excep coredns pods, that will be ready after cni install)
+Note: This creates also the /tmp file with kubeadm join cmmand.
+
+3) Apply cni plugin only on master - after all pods except coredns are up!!!
+Note: Make sure to download cni file  before you run and also edit proj_vars for this cni!
+ansible-playbook -i inventory apply-cni-on-masetr.yaml 
+
+3a) Optional: Untaint master to schedule pods on it: (need to add to ansible).
+kubectl taint node ip-100-66-19-207.eu-west-1.compute.internal node-role.kubernetes.io/master:NoSchedule-
+
+Note: Following is run one-by-one for each app2 - app5! Need to automate this with WAIT between execs.
+4) ansible-playbook -i inventory --limit 'app2' run-kubeadm-join-on-workers.yaml 
+
+####################################################################################
+OBSOLETE see updated section 5 next....
+5) Create SC and PVs (Note: we need to create PVs only when rook-ceph is not usded): 
+ansible-playbook -i inventory create_sc_and_pvs.yaml // may need edit 
+Note: Currently creates in each node: x6 1GB PV, x5 5GB PV and x4 10GB PV)
+####################################################################################
+
+5) Install helm openEBS storage provider:
+ansible-playbook -i inventory install-openebs-storage-helm-chart.yaml
+Note: This also creates two storage classes: openebs-device and openebs-hostpath, we use the openebs-hostpath.
+
+6) Install Rook ceph storage class
+	 a) Install readwriteonce storage class
+			ansible-playbook -i inventory install-rook-ceph-storage-readwriteonce.yaml
+	 b) Install readwritemany storage class
+			ansible-playbook -i inventory install-rook-ceph-storage-readwritemany.yaml
+
+7) Need to add to playbook:
+kubectl patch storageclass openebs-hostpath -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+Ready here to install project!
+
+TODO:
+ 
+Fix the addition of docker repo AND proper uninstall of docker (per docker website!)
+Run yum update!
+Fix issue of storage: 
+Install & enable iscsi on all nodes
+
+---------------
+
+Usefull tips:
+For calicoctl:
+export DATASTORE_TYPE=kubernetes
+export KUBECONFIG=~/.kube/config
+
+For consul troubleshoot:
+nslookup consul-server-0.consul-server.infrastructure.svc.cluster.local
+
+Ansible:
+add: ignore_errors: yes
+ansible-playbook --limit 'hoost1' yourPlaybook.yml
+
+To get kibana GUI:
+k -n $monitoring port-forward --address 100.66.19.207 svc/monitoring-kibana-kb-http 5901:5601 --v=6
+Note: In above the IP addr is of the master
+
+General notes:
+Tried first on app-001 (add to cleanup if all works...):
+systemctl stop libvirtd.service
+systemctl disable libvirtd.service
+Removed symlink /etc/systemd/system/multi-user.target.wants/libvirtd.service.
+Removed symlink /etc/systemd/system/sockets.target.wants/virtlogd.socket.
+Removed symlink /etc/systemd/system/sockets.target.wants/virtlockd.socket
+
+
+ip link set virbr0-nic down
+ip link delete virbr0-nic 
+ip link set virbr0 down
+brctl delbr virbr0
+ip link delete docker0
+modprobe -r br_netfilter
+
+
+########################################################################################
+######## Not relevant, we use canal, not Calico, left for referrence   ##########
+Try instructions per:
+https://projectcalico.docs.tigera.io/archive/v3.16/getting-started/kubernetes/quickstart 
+#########################################################################################
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
+IMPORTANT!!! See following for canal:
+https://projectcalico.docs.tigera.io/archive/v3.15/getting-started/kubernetes/flannel/flannel
+!!!!!!!!!!!!!!!!!!!!!!!!
+
+ssh-keygen -t rsa
+Linux seems to be create 2048 bit, and that seems to work  - I wonder what size. your old key was.
+
+ansible:
+To install the helm and k8s module:
+ansible-galaxy collection install kubernetes.core
+

@@ -1,0 +1,35 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Install openebs helm chart as storage provider 
+  hosts: master 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root
+
+  tasks:
+
+  - name: Add openebs helm repo 
+    kubernetes.core.helm_repository:
+      name: openebs 
+      repo_url: "https://openebs.github.io/charts" 
+
+  - name: Install openEBS chart
+    shell: helm install -n openebs openebs openebs/openebs --create-namespace
+
+  # Following gave n error, hence used shel command...
+  #- name: Install openebs helm chart 
+  #  kubernetes.core.helm:
+  #    name: openebs
+  #    chart_ref: openebs/openebs
+  #    release_namespace: openebs
+  #    create_namespace: true
+

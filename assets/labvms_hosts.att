@@ -1,0 +1,6 @@
+### ANSIBLE ETAD - BEGIN ADD LAB VMs HOSTS ###
+10.15.40.66,dub-opnt-supp-att01.amdocs.com,dub-opnt-supp-att01
+10.15.40.67,dub-opnt-supp-att02.amdocs.com,dub-opnt-supp-att02
+10.15.40.68,dub-opnt-supp-att03.amdocs.com,dub-opnt-supp-att03
+10.15.40.69,dub-opnt-supp-att04.amdocs.com,dub-opnt-supp-att04
+### ANSIBLE ETAD - END ADD LAB VMs HOSTS ###

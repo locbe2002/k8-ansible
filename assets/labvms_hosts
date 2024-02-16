@@ -1,0 +1,18 @@
+### ANSIBLE ETAD - BEGIN ADD LAB VMs HOSTS ###
+10.15.40.66,dub-opnt-supp-att01.amdocs.com,dub-opnt-supp-att01
+10.15.40.67,dub-opnt-supp-att02.amdocs.com,dub-opnt-supp-att02
+10.15.40.68,dub-opnt-supp-att03.amdocs.com,dub-opnt-supp-att03
+10.15.40.69,dub-opnt-supp-att04.amdocs.com,dub-opnt-supp-att04
+10.15.40.70,dub-opnt-supp-att05.amdocs.com,dub-opnt-supp-att05
+10.15.40.71,dub-opnt-supp-att06.amdocs.com,dub-opnt-supp-att06
+10.15.40.72,dub-opnt-supp-att07.amdocs.com,dub-opnt-supp-att07
+10.15.40.73,dub-opnt-supp-att08.amdocs.com,dub-opnt-supp-att08
+10.15.40.74,dub-opnt-supp-att09.amdocs.com,dub-opnt-supp-att09
+10.15.40.75,dub-opnt-supp-att10.amdocs.com,dub-opnt-supp-att10
+10.15.40.76,dub-opnt-supp-att11.amdocs.com,dub-opnt-supp-att11
+10.15.40.77,dub-opnt-supp-att12.amdocs.com,dub-opnt-supp-att12
+10.15.40.78,dub-opnt-supp-att13.amdocs.com,dub-opnt-supp-att13
+10.15.40.79,dub-opnt-supp-att14.amdocs.com,dub-opnt-supp-att14
+10.15.40.80,dub-opnt-supp-att15.amdocs.com,dub-opnt-supp-att15
+10.15.40.81,dub-opnt-supp-att16.amdocs.com,dub-opnt-supp-att16
+### ANSIBLE ETAD - END ADD LAB VMs HOSTS ###

@@ -1,0 +1,99 @@
+---
+# Run with: ansible-playbook -i inventory copy_files....yaml 
+#
+- name: Copy crt and ca bundles files (replace...)
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    localcksum: 599069361_257317
+  remote_user: root
+  
+  tasks:
+
+  - name: stat ca-bundle.trust.crt 
+    stat: path=/etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
+    register: fx_stat
+
+  - name: Check cksum of ca-bundle.trust.crt 
+    shell: cksum /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt | awk '{print $1"_"$2}'
+    register: cksum_remote 
+    when: fx_stat.stat.exists
+
+  - name: Print Debug info 
+    ansible.builtin.debug:
+        msg: "File ca-bundle.trust.crt DOES NOT exist, will do simple COPY"
+    when: not fx_stat.stat.exists
+
+  - name: Print Debug info 
+    copy:
+       src: "{{ wd + '/assets/ca-bundle.trust.crt' }}"
+       dest: /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
+       mode: 0444
+    when: not fx_stat.stat.exists
+
+  - name: Check stat result if ca-bundle.trust.crt is FINE
+    ansible.builtin.debug:
+        msg: "File ca-bundle.trust.crt EXISTS and is FINE, will do NOTHING" 
+    when: fx_stat.stat.exists and cksum_remote.stdout == "599069361_257317" 
+
+  - name: Check stat result ca-bundle.trust.crt EXISTS and is NOT FINE 
+    ansible.builtin.debug:
+       msg: "File ca-bundle.trust.crt EXISTS and is NOT FINE, will save current and COPY new"
+    when: fx_stat.stat.exists and cksum_remote.stdout != "599069361_257317"
+
+  - name: Need to replace ca-bundle.trust.crt - Save old crt file 
+    command: mv /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt.012323
+    when: fx_stat.stat.exists and cksum_remote.stdout != "599069361_257317"
+
+  - name: Copy new ca-bundle.trust.crt file 
+    copy:
+       src: "{{ wd + '/assets/ca-bundle.trust.crt' }}"
+       dest: /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
+       mode: 0444
+    when: fx_stat.stat.exists and cksum_remote.stdout != "599069361_257317"
+
+# Now tls-ca-bundle.pem 
+  - name: stat tls-ca-bundle.pem 
+    stat: path=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+    register: fx_stat
+
+  - name: Check cksum of tls-ca-bundle.pem 
+    shell: cksum /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem | awk '{print $1"_"$2}'
+    register: cksum_remote 
+    when: fx_stat.stat.exists
+
+  - name: Print Debug info tls-ca-bundle.pem DOES NOT EXIST 
+    ansible.builtin.debug:
+        msg: "File tls-ca-bundle.pem DOES NOT exist, will do simple COPY"
+    when: not fx_stat.stat.exists
+
+  - name: Copy new pem as orig does not exist 
+    copy:
+       src: "{{ wd + '/assets/tls-ca-bundle.pem' }}"
+       dest: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem 
+       mode: 0444
+    when: not fx_stat.stat.exists
+
+  - name: Check stat - tls-ca-bundle.pem is fine 
+    ansible.builtin.debug:
+       msg: "File tls-ca-bundle.pem EXISTS and is FINE, will do NOTHING" 
+    when: fx_stat.stat.exists and cksum_remote.stdout == "1029994196_211583" 
+
+  - name: Check stat - tls-ca-bundle.pem - exists and not fine 
+    ansible.builtin.debug:
+       msg: "File tls-ca-bundle.pem EXISTS and is NOT FINE, will save current and COPY new"
+    when: fx_stat.stat.exists and cksum_remote.stdout != "1029994196_211583"
+
+  - name: Result NOT FINE - Save old pem 
+    command: mv /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem.012323
+    when: fx_stat.stat.exists and cksum_remote.stdout != "1029994196_211583"
+
+  - name: Result NOT FINE - Copy new tls-ca-bundle.pem 
+    copy:
+       src: "{{ wd + '/assets/tls-ca-bundle.pem' }}"
+       dest: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem 
+       mode: 0444
+    when: fx_stat.stat.exists and cksum_remote.stdout != "1029994196_211583"
+
+
+

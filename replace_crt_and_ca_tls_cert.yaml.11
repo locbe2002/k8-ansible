@@ -1,0 +1,51 @@
+---
+# Run with: ansible-playbook -i inventory copy_files....yaml 
+#
+- name: Copy files - Note modify the files to copy!!! 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    localcksum: 599069361_257317
+  remote_user: root
+  
+  tasks:
+
+  - name: stat ca-bundle.trust.crt 
+    stat: path=/etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
+    register: fx_stat
+
+  - name: Check cksum of ca-bundle.trust.crt 
+    shell: cksum /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt | awk '{print $1"_"$2}'
+    register: cksum_remote 
+    when: fx_stat.stat.exists
+
+  - name: Print Debug info 
+    ansible.builtin.debug:
+        msg: "File ca-bundle.trust.crt DOES NOT exist, will do simple COPY"
+        copy:
+           src: "{{ wd + '/assets/ca-bundle.trust.crt' }}"
+           dest: /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
+           mode: 0444
+    when: not fx_stat.stat.exists
+
+  - name: Check Result FINE
+    ansible.builtin.debug:
+        msg: "File ca-bundle.trust.crt EXISTS and is FINE, will do NOTHING" 
+    when: fx_stat.stat.exists and cksum_remote.stdout == "599069361_257317" 
+
+  - name: Result NOT FINE - Print msg 
+    ansible.builtin.debug:
+       msg: "File ca-bundle.trust.crt EXISTS and is NOT FINE, will save current and COPY new"
+    when: fx_stat.stat.exists and cksum_remote.stdout != "599069361_257317"
+
+  - name: Result NOT FINE - Save old crt 
+    command: mv /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt.012323
+    when: fx_stat.stat.exists and cksum_remote.stdout != "599069361_257317"
+
+  - name: Result NOT FINE - Copy new crt 
+    copy:
+       src: "{{ wd + '/assets/ca-bundle.trust.crt' }}"
+       dest: /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
+       mode: 0444
+    when: fx_stat.stat.exists and cksum_remote.stdout != "599069361_257317"
+

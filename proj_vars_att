@@ -1,0 +1,13 @@
+---
+# Variables for vfiot project lab
+docker_version: 19.03.13
+kubernetes_version: 1.20.8
+#calico_file_version: calico-3.15.yaml
+#cni_file_version: calico.3.16.yaml
+cni_file_version: canal.3.16.yaml
+#cni_file_version: kube-flannel.yml 
+remote_basedir: /root/docker_k8s
+svc_env_proxy: service_env_proxy
+net_pod_cidr: 10.244.0.0/16
+joinsavefile: /tmp/kubeadmjoincmd.yaml
+#

@@ -1,0 +1,5 @@
+01/25/23
+This directory contains all ansible scripts and supporting files
+to perform Docker and K8S cluster install and uninstall in Openet Support lab.
+Current versionis for on-premise VMs. There is some old stuff that had been used in AWS
+lab.

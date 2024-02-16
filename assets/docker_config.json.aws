@@ -1,0 +1,12 @@
+{
+ "proxies":
+ {
+   "default":
+   {
+     "httpProxy": "http://proxy.shared-services.local:3128",
+     "httpsProxy": "https://proxy.shared-services.local:3128",
+     "noProxy": "127.0.0.1,100.66.0.0/16,172.17.0.0/16,192.0.0.0/8,10.0.0.0/8,openet.com,.svc,.svc.cluster.local,.cluster.local"
+   }
+ }
+}
+

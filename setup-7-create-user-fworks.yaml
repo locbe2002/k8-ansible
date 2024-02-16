@@ -1,0 +1,61 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# Here we add usee fworks, we give it sudo, we set vm.overcommit
+- name: Create user fworks 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+  remote_user: root
+
+  tasks:
+# Following is needed if we work with Calico
+  - name: Add user fworks
+    ansible.builtin.user:
+      name: fworks
+      #group: fworks
+    ignore_errors: yes
+ 
+  - name: Allow user fworks to sudo
+    copy:
+      src: "{{ assets }}/92-user-fworks"
+      dest: /etc/sudoers.d 
+      mode: '0440'
+    
+  - name: copy script add_key_2_authorized_keys.bash 
+    copy:
+      src: "{{ assets }}/add_key_2_authorized_keys.bash"
+      dest: /root/docker_k8s/scripts 
+      mode: '0755'
+
+  - name: Copy fworks public key 
+    copy:
+      src: "{{ assets }}/id_rsa_fworks.pub"
+      dest: /root/docker_k8s/scripts 
+      mode: '0644'
+
+  - name: Create .ssh dir 
+    file:
+      path: /home/fworks/.ssh 
+      state: directory
+      mode: '0700'
+      owner: fworks
+      group: fworks
+
+  - name: Run script to add public key to ssh as fworks 
+    shell: 
+      /root/docker_k8s/scripts/add_key_2_authorized_keys.bash /root/docker_k8s/scripts/id_rsa_fworks.pub fworks 
+
+# Following will allow user fworks to sudo
+  - name: Copy fworks to /etc/sudoers.d 
+    copy:
+      src: "{{ assets }}/fworks"
+      dest: /etc/sudoers.d
+      mode: '0400'
+

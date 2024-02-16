@@ -1,0 +1,53 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# Here we add usee fworks, we give it sudo, we set vm.overcommit
+- name: disable selinux 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root
+
+  tasks:
+
+  - name: Create a directory if it does not exist
+    file:
+      path: "{{ item }}" 
+      state: directory
+      mode: '0755'
+    loop:
+      - /root/docker_k8s/scripts
+      - /root/docker_k8s/cni
+      - /root/docker_k8s/bkp
+      - /root/docker_k8s/storage
+
+  - name: copy disable_selinux.bash 
+    copy:
+      src: "{{ assets }}/disable_selinux.bash"
+      dest: /root/docker_k8s/scripts
+      mode: '0755'
+
+  - name: Run disable selinux script 
+    shell: 
+      /root/docker_k8s/scripts/disable_selinux.bash 
+
+  - name: disable firewalld 
+    ansible.builtin.systemd:
+      name: firewalld.service
+      state: stopped
+      enabled: no 
+
+  - name: Print msg about sleep
+    ansible.builtin.debug:
+      msg: 
+        - "You need to restart VM in order to pickup the selinux disabling"
+        - "Issue the following to reboot the VM <shutdown -r now>"
+

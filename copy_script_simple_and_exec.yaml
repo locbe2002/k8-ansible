@@ -1,0 +1,29 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# Here we add usee fworks, we give it sudo, we set vm.overcommit
+- name: Copy script and exec it 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root 
+
+  tasks:
+  - name: Copy script 
+    copy:
+      src: "{{ assets }}/set_ntp.bash"
+      dest: /root/docker_k8s/scripts 
+      mode: '0755'
+
+  - name: Exec script 
+    shell: /root/docker_k8s/scripts/set_ntp.bash
+
+    

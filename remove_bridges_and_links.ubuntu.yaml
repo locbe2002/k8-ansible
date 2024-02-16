@@ -1,0 +1,32 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Remove bridges and links 
+  hosts: all 
+  vars:
+    sleep10: 10
+  remote_user: root
+
+  tasks:
+
+  - name: Delete link docker0 
+    shell: ip link delete docker0 
+    ignore_errors: yes
+
+  - name: Uninstall br_netfilter module 
+    shell: modprobe -r br_netfilter 
+    ignore_errors: yes
+
+  - name: Set flannel.1 down
+    shell: ip link set flannel.1 down 
+    ignore_errors: yes
+
+  - name: Delete link flannel.1 
+    shell: ip link delete flannel.1 
+    ignore_errors: yes
+
+  - name: Delete link docker0 
+    shell: ip link delete docker0
+
+    ignore_errors: yes

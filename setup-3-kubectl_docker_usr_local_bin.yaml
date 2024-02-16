@@ -1,0 +1,36 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Docker specific un-install 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    varsfile: "{{ wd }}/proj_vars"
+    sleep10: 10
+  vars_files:
+    - "{{ varsfile }}"
+  remote_user: root
+
+  tasks:
+
+# Note, later we will remove dirs...
+#
+  - name: stat kubectl 
+    stat: path=/usr/local/bin/kubectl
+    register: fx_stat
+
+  - name: mv kubectl to kubectl.orig 
+    command: mv /usr/local/bin/kubectl /usr/local/bin/kubectl.orig 
+    when: fx_stat.stat.exists
+
+
+  - name: stat docker 
+    stat: path=/usr/local/bin/docker
+    register: fx_stat
+
+  - name: mv docker to docker.orig 
+    command: mv /usr/local/bin/docker /usr/local/bin/docker.orig 
+    when: fx_stat.stat.exists
+
+

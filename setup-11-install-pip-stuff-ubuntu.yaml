@@ -1,0 +1,30 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# Here we add usee fworks, we give it sudo, we set vm.overcommit
+- name: Install pip stuff 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root
+
+  tasks:
+# Following is needed if we work with Calico
+  - name: Install pip 
+    apt:
+      name:
+        - python3-pip 
+      state: present
+
+  - name: Install pip expect pkg
+    shell:
+      pip3 install pexpect 
+

@@ -1,0 +1,63 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# Here we add usee fworks, we give it sudo, we set vm.overcommit
+- name: Set fworks authorized_keys 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root
+
+  vars_prompt:
+    - name: overwrite
+      prompt: Enter A to add the new key to existing authorized_keys file, or any other key to overwrite authorized_keys file, default is to overwrite.
+      default: O
+
+  tasks:
+
+  - name: Print overwrite value
+    ansible.builtin.debug:
+      msg: 'Value of overrite is {{ overwrite }}'
+
+  - name: Wait 30 seconds to enable to exit script with Ctrl C 
+    ansible.builtin.debug:
+      msg: 'Hit Ctrl C now if the value of overrite is incorrect...' 
+
+  - name: Pause for 5 minutes to build app cache
+    pause:
+      seconds: 20 
+
+# Following is needed if we work with Calico
+  - name: copy script add_key_2_authorized_keys.bash 
+    copy:
+      src: "{{ assets }}/add_key_2_authorized_keys.bash"
+      dest: /root/docker_k8s/scripts 
+      mode: '0755'
+
+  - name: Copy fworks public key 
+    copy:
+      src: "{{ assets }}/id_rsa_fworks.pub"
+      dest: /root/docker_k8s/scripts 
+      mode: '0644'
+
+
+  - name: Adding key to authorized_keys if it is not in file 
+    shell: 
+      /root/docker_k8s/scripts/add_key_2_authorized_keys.bash /root/docker_k8s/scripts/id_rsa_fworks.pub fworks
+    when: overwrite == "O" 
+
+  - name: Set fworks authorized_keys overwrite mode
+    shell: |
+      cat /root/docker_k8s/scripts/id_rsa_fworks.pub > /home/fworks/.ssh/authorized_keys
+      chown fworks /home/fworks/.ssh/authorized_keys
+      chmod 400 /home/fworks/.ssh/authorized_keys
+    when: overwrite != "O"
+ 

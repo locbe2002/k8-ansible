@@ -1,0 +1,67 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# Here we add usee fworks, we give it sudo, we set vm.overcommit
+- name: Misc general setup tasks 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root
+
+  tasks:
+# Following is needed if we work with Calico
+  - name: copy openet-vm-overcommit.conf 
+    copy:
+      src: "{{ assets }}/openet-vm-overcommit.conf"
+      dest: /etc/sysctl.d
+      mode: '0644'
+
+  - name: copy Cluster info 
+    copy:
+      src: "{{ assets }}/k8_cluster.info"
+      dest: /root/docker_k8s 
+      mode: '0644'
+
+  - name: Run sysctl for vm.overcommit 
+    shell: |
+      sysctl -w vm.overcommit_memory=1
+      sysctl -w vm.max_map_count=1048576
+ 
+  - name: Add user fworks
+    ansible.builtin.user:
+      name: fworks
+      #group: fworks
+      generate_ssh_key: yes
+      ssh_key_bits: 2048
+      ssh_key_file: .ssh/id_rsa
+ 
+  - name: Allow user fworks to sudo
+    copy:
+      src: "{{ assets }}/92-user-fworks"
+      dest: /etc/sudoers.d 
+      mode: '0440'
+    
+  - name: copy script add_key_2_authorized_keys.bash 
+    copy:
+      src: "{{ assets }}/add_key_2_authorized_keys.bash"
+      dest: /root/docker_k8s/scripts 
+      mode: '0755'
+
+  - name: copy  
+    copy:
+      src: "{{ assets }}/id_rsa_fworks.pub"
+      dest: /root/docker_k8s/scripts 
+      mode: '0644'
+
+  - name: Run script to add public key to ssh as fworks 
+    shell: 
+      /root/docker_k8s/scripts/add_key_2_authorized_keys.bash /root/docker_k8s/scripts/id_rsa_fworks.pub fworks 
+

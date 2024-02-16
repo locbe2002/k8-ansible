@@ -1,0 +1,25 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Flush iptables 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    varsfile: "{{ wd }}/proj_vars"
+    sleep10: 10
+  vars_files:
+    - "{{ varsfile }}"
+  remote_user: root
+
+  tasks:
+
+  - name: Copy flush iptables script 
+    copy:
+      src: "{{ wd }}/assets/flush_iptables.bash"
+      dest: /tmp/flush_iptables.bash
+      mode: '0755'
+
+  - name: Flush iptables
+    shell: /tmp/flush_iptables.bash
+

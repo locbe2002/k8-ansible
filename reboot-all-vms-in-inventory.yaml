@@ -1,0 +1,46 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# Here we add usee fworks, we give it sudo, we set vm.overcommit
+- name: Reboot VMs 
+  hosts: workers 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}"
+  vars_prompt:
+    - name: userprompt 
+      prompt: WARNING! This script will reboot nodes, are you sure this is what you want to do? Anser with Y co continue or any oher key to exit
+      private: false 
+  remote_user: root
+
+  tasks:
+
+  - name: Print Exit message if user selected to exit
+    debug:
+       msg: Will exit script as per your prompt, nothing was done... 
+    when: userprompt != "Y"
+
+  - name: Exit if prompts is not Y
+    meta: end_play
+    when: userprompt != "Y"
+
+# Following is needed if we work with Calico
+  - name: Print debug mesaage
+    debug:
+       msg: Will proceed with rebooting! 
+    when: userprompt == "Y"
+
+  - name: Copy script 
+    copy:
+      src: "{{ assets }}/reboot_ubuntu.bash"
+      dest: /root/docker_k8s/scripts 
+      mode: '0755'
+
+  - name: Exec script 
+    shell: /root/docker_k8s/scripts/reboot_ubuntu.bash
+

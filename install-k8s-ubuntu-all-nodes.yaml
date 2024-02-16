@@ -1,0 +1,106 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: K8s base install 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root
+
+  tasks:
+      #Note Zvi: I confirmed on the ubuntus we got netfilter net.bridge.bridge-nf-call 
+      # are ok.
+      #- name: Copy k8s file for netfilter 
+      #copy:
+      #src: "{{ assets }}/k8s.conf.modules"
+      #dest: /etc/modules-load.d/k8s.conf
+ 
+      #- name: Copy k8s file for sysctl 
+      #copy:
+      #src: "{{ assets }}/k8s.conf.sysctl"
+      #dest: /etc/sysctl.d/k8s.conf
+ 
+  - name: Copy kubernetes.repo 
+    copy:
+      src: "{{ assets }}/kubernetes.list"
+      dest: /etc/apt/sources.list.d/
+
+  - name: Copy kubernetes Cloud public signing key
+    copy:
+      src: "{{ assets }}/kubernetes-archive-keyring.gpg"
+      dest: /etc/apt/keyrings/  
+
+  - name: Copy add_env_to_service_att.py 
+    copy:
+      src: "{{ assets }}/add_env_to_service_att.py"
+      dest: "{{ remote_basedir }}/scripts/" 
+
+
+
+  - name: run cache madison refresh 
+    shell: |
+       apt-get update
+       apt-cache madison kubelet 
+       apt-cache madison kubectl
+       apt-cache madison kubeadm
+
+  - name: Install apt-transport-https 
+    apt:
+      name: 
+        - apt-transport-https 
+      state: present
+
+  - name: Install Kubernetes base 
+    apt:
+      name: 
+        - kubelet={{ kubernetes_version }}
+        - kubeadm={{ kubernetes_version }}
+        - kubectl={{ kubernetes_version }}
+      state: present
+
+  - name: Print msg about sleep before kubelete enable 
+    ansible.builtin.debug:
+      msg: System "Will sleep for 30 seconds, check on app1 if kubelete exists..." 
+
+  - name: Sleep betwen Docker restart and containerd restart
+    pause:
+      seconds: 30 
+
+  - name: Enable kubelet 
+    ansible.builtin.systemd:
+      name: kubelet.service
+      enabled: yes
+
+  - name: backup kubelet.service orig
+    copy:
+      src: /usr/lib/systemd/system/kubelet.service
+      dest: "{{ remote_basedir }}/bkp/kubelet.service.orig.{{ zdt }}"
+      remote_src: yes
+    ignore_errors: yes
+
+  - name: Exec add env sourcing to kubelet.service
+    shell: "{{ remote_basedir }}/scripts/add_env_to_service_att.py /usr/lib/systemd/system/kubelet.service"
+
+  - name: systemctl daemon reload 
+    ansible.builtin.systemd:
+      daemon_reload: yes 
+
+  - name: Sleep betwen containerd restart and Kubernetes restart
+    pause:
+      seconds: 8
+ 
+  - name: Restart kubelet 
+    ansible.builtin.systemd:
+      name: kubelet.service
+      state: restarted
+      enabled: yes 
+

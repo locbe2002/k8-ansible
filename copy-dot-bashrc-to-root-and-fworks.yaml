@@ -1,0 +1,29 @@
+---
+# Run with: ansible-playbook -i inventory copy_files....yaml 
+#
+- name: Copy files - Note modify the files to copy!!! 
+  hosts: all 
+  vars:
+    dummy1: 80
+    dummy2: 200
+    wd: "{{ lookup('pipe', 'pwd') }}"
+  remote_user: root
+
+  tasks:
+  - name: copy bashrc to root 
+    copy:
+      src: "{{ wd + '/assets/dot_bashrc' }}" 
+      dest: /root/.bashrc 
+      #owner: apache
+      #group: apache        
+      mode: 0644
+
+  - name: copy bashrc to fworks 
+    copy:
+      src: "{{ wd + '/assets/dot_bashrc' }}" 
+      dest: /home/fworks/.bashrc 
+      owner: fworks 
+      group: fworks 
+      mode: 0644
+
+

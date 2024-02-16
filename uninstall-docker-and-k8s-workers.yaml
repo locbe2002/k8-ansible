@@ -1,0 +1,95 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Docker and K8s base install 
+  hosts: workers 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    varsfile: "{{ wd }}/proj_vars"
+    sleep10: 10
+  vars_files:
+    - "{{ varsfile }}"
+  remote_user: root
+
+  tasks:
+
+  - name: Stop and disable kubelet 
+    ansible.builtin.systemd:
+      name: kubelet.service
+      state: stopped
+      enabled: no 
+    ignore_errors: yes
+
+  - name: Unistall Kubernetes base 
+    yum:
+      name: 
+        - kubelet-{{ kubernetes_version }}
+        - kubeadm-{{ kubernetes_version }}
+        - kubectl-{{ kubernetes_version }}
+      disable_excludes: kubernetes
+      state: absent 
+
+# Note, later we will remove dirs...
+#
+  - name: Disable and stop docker
+    ansible.builtin.systemd:
+      name: docker.service
+      state: stopped
+      enabled: no
+    ignore_errors: yes
+
+  - name: Unistall docker 
+    yum:
+      name: 
+        - docker-ce-{{ docker_version }}
+        - docker-ce-cli-{{ docker_version }}
+        - containerd.io 
+      state: absent 
+
+  - name: Print dummy message for refference 
+    ansible.builtin.debug:
+      msg: System "Bla bla bla" 
+
+  - name: Sleep demo 
+    pause:
+      seconds: 5 
+
+  - name: Delete ipip module
+    shell: modprobe -r ipip
+    ignore_errors: yes
+
+  - name: Copy flush iptables script 
+    copy:
+      src: "{{ wd }}/assets/flush_iptables.bash"
+      dest: /tmp/flush_iptables.bash
+      mode: '0755'
+
+  - name: Flush iptables
+    shell: /tmp/flush_iptables.bash
+
+  - name: Copy umount kubelet dirs script 
+    copy:
+      src: "{{ wd }}/assets/umount_kubelet_dirs.bash"
+      dest: /tmp/umount_kubelet_dirs.bash
+      mode: '0755'
+
+  - name: umount kubelet dirs 
+    shell: /tmp/umount_kubelet_dirs.bash
+
+  - name: Delete Docker and k8s dirs 
+    file:
+      path: "{{ item }}"
+      state: absent
+    with_items:
+      - /etc/cni/ 
+      - /etc/kubernetes/ 
+      - /var/lib/dockershim/
+      - /var/lib/etcd/ 
+      - /var/lib/kubelet/ 
+      - /var/run/kubernetes/
+      - /root/.kube/
+      - /var/lib/docker/
+      - /etc/docker/
+      - /var/lib/calico/
+      - /pv/

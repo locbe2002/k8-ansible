@@ -1,0 +1,62 @@
+---
+# Run with: ansible-playbook -i inventory pbfile
+# To be run on master - it runs kubeadm init + set the calico plugin 
+
+- name: Apply cni on master 
+  hosts: master 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    varsfile: "{{ wd }}/proj_vars"
+    remotewd: /root/docker_k8s
+    kubeadm_init_succ_msg: "Your Kubernetes control-plane has initialized successfully"
+    sleep20: 30
+    sleep300: 300
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+#kubeadm_result_file: /home/forge/ansible/vfiot/kubeadm_result.txt
+#local_kubeadm_result_file: "{{ wd }}/kubeadm_result.txt"
+#remote_kubeadm_result_file: "{{ remotewd }}/kubeadm_result.txt"
+#remote_kubeadm_result_file: "{{ remotewd + '/kubeadm_result_' + zdt +  '.txt' }}"
+#local_kubeadm_result_file: "{{ wd + '/kubeadm_result_' + zdt +  '.txt' }}"
+#local_kubeadm_result_file: "{{ wd + '/kubeadm_result.txt' }}"
+
+  vars_files:
+    - "{{ varsfile }}"
+
+  remote_user: root
+
+  tasks:
+
+  - name: Print msg all good and we continue exec...
+    ansible.builtin.debug:
+      msg:
+        - "####################################################################"
+        - "Will deploy {{ cni_file_version }} with POD CIDR: {{ net_pod_cidr }}}"
+        - "####################################################################"
+
+  - name: Copy CNI network plugin
+    copy:
+      src: "{{ wd }}/assets/{{ cni_file_version }}"
+      dest: /root/docker_k8s/cni/{{ cni_file_version }}
+
+  - name: Deploy CNI network plugin
+    shell: kubectl --kubeconfig /root/.kube/config apply -f /root/docker_k8s/cni/{{ cni_file_version }}
+    register: result1
+
+  - name: Wait after applying cni plugin  
+    ansible.builtin.debug:
+      msg: "It can take up to about two minutes before Kubernetes cluster is fully up, please be patient." 
+
+  - name: Pause for 30 seconds
+    pause:
+      seconds: 30
+
+  - name:  Run kubectl get nodes
+    shell: kubectl get nodes
+
+  - name: Print msg on master taint  
+    ansible.builtin.debug:
+        msg: "Optional: Run following on master: kubectl taint nodes --all node-role.kubernetes.io/master- " 
+
+# I need to add a method loop to check when cluster is fully up...probably some script
+# For now run following manualy
+# kubectl taint nodes --all node-role.kubernetes.io/master- 

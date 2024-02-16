@@ -1,0 +1,58 @@
+---
+# Run with: ansible-playbook -i inventory pbfile
+# To be run on master - it runs kubeadm init + set the calico plugin 
+
+- name: Installing rook-ceph storage class
+  hosts: master 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    varsfile: "{{ wd }}/proj_vars"
+
+  vars_files:
+    - "{{ varsfile }}"
+
+  remote_user: root
+
+  tasks:
+
+  - name: Create directory for rook-ceph
+    file:
+      path: /root/docker_k8s/storage/ceph
+      state: directory
+      mode: '0755'
+
+  - name: Copy rook-ceph deployments files
+    copy:
+      src: "{{ item }}"
+      dest: /root/docker_k8s/storage/ceph/
+    with_items:
+        - "{{ wd }}/assets/common.yaml"
+        - "{{ wd }}/assets/operator.yaml"
+        - "{{ wd }}/assets/cluster_FileSystem.yaml"
+        - "{{ wd }}/assets/cluster_org.yaml"
+        - "{{ wd }}/assets/storageclass-readwriteonce.yaml"
+
+  - name: Deploy rook ceph common.yaml and operator.yaml
+    shell: "{{ item }}"
+    loop:
+      - kubectl apply -f /root/docker_k8s/storage/ceph/common.yaml
+      - kubectl apply -f /root/docker_k8s/storage/ceph/operator.yaml
+      - kubectl -n rook-ceph create secret generic rook-ceph-crash-collector-keyring
+    loop_control:
+      pause: 30
+
+  - name: wait for rook-ceph operator to come up
+    shell: kubectl wait pod --all -n rook-ceph --timeout=10m --for=condition=ready --field-selector=status.phase!=Succeeded
+
+  - name: Pause for 30 seconds
+    pause:
+      seconds: 30
+
+  - name: Deploy rook ceph cluster.yaml
+    shell: kubectl apply -f /root/docker_k8s/storage/ceph/cluster_org.yaml
+
+  - name: wait for rook-ceph cluster to come up
+    shell: kubectl wait pod --all -n rook-ceph --timeout=30m --for=condition=ready --field-selector=status.phase!=Succeeded
+
+  - name: Deploy rook ceph storage class
+    shell: kubectl apply -f /root/docker_k8s/storage/ceph/storageclass-readwriteonce.yaml

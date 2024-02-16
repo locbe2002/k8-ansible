@@ -1,0 +1,115 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Docker and K8s base Uninstall 
+  hosts: master 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    varsfile: "{{ wd }}/proj_vars"
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+    sleep10: 10
+  vars_files:
+    - "{{ varsfile }}"
+  remote_user: root
+
+  tasks:
+  - name: Run kubadm reset
+    ansible.builtin.expect:
+      command: kubeadm reset 
+      responses:
+        'Are you sure you want to proceed': 'y' 
+    ignore_errors: yes
+
+  - name: Stop and disable kubelet 
+    ansible.builtin.systemd:
+      name: kubelet.service
+      state: stopped
+      enabled: no 
+    ignore_errors: yes
+
+
+  - name: Unistall Kubernetes base 
+    shell: |
+      apt --yes --allow-change-held-packages --purge remove kubeadm
+      apt --yes --allow-change-held-packages --purge remove kubelet
+      apt --yes --allow-change-held-packages --purge remove kubectl
+      apt --yes --allow-change-held-packages --purge remove kubernetes-cni
+    ignore_errors: yes
+
+# Note, later we will remove dirs...
+#
+  - name: Disable and stop docker
+    ansible.builtin.systemd:
+      name: docker.service
+      state: stopped
+      enabled: no 
+    ignore_errors: yes
+
+  - name: Unistall docker 
+    shell: |
+      apt --yes --allow-change-held-packages --purge remove docker-ce
+      apt --yes --allow-change-held-packages --purge remove docker-compose-plugin
+      apt --yes --allow-change-held-packages --purge remove docker-buildx-plugin
+      apt --yes --allow-change-held-packages --purge remove docker-ce-cli
+      apt --yes --allow-change-held-packages --purge remove containerd.io
+    ignore_errors: yes
+
+  - name: Print dummy message for refference 
+    ansible.builtin.debug:
+      msg: System "Bla bla bla" 
+
+  - name: Sleep demo 
+    pause:
+      seconds: 5 
+
+
+  - name: Copy umount kubelet dirs script
+    copy:
+      src: "{{ wd }}/assets/umount_kubelet_dirs.bash"
+      dest: /tmp/umount_kubelet_dirs.bash
+      mode: '0755'
+
+  - name: umount kubelet dirs
+    shell: /tmp/umount_kubelet_dirs.bash
+
+  - name: Delete Docker and k8s dirs 
+    file:
+      path: "{{ item }}"
+      state: absent
+    with_items:
+      - /etc/cni/ 
+      - /etc/kubernetes/ 
+      - /var/lib/dockershim/
+      - /var/lib/etcd/ 
+      - /var/lib/kubelet/ 
+      - /var/run/kubernetes/
+      - /root/.kube/
+      - /var/lib/docker/
+      - /etc/docker/
+      - /var/lib/calico/
+      - /var/lib/jenkins/.kube
+      - /var/log/pods
+      - /var/log/containers
+      - /usr/libexec/docker
+      - /usr/bin/dockerd
+      - /usr/bin/docker-init
+      - /usr/bin/docker
+      - /usr/bin/docker-proxy
+
+
+
+  - name: Delete ipip module 
+    shell: modprobe -r ipip
+
+  - name: Copy flush_iptables script 
+    copy:
+      src: "{{ wd }}/assets/flush_iptables.bash"
+      dest: /tmp/flush_iptables.bash
+      mode: '0755'
+
+  #- name: Flush iptables 
+  #  shell: /tmp/flush_iptables.bash
+ 
+

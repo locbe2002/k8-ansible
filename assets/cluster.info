@@ -1,0 +1,14 @@
+Proj: att
+Clu: att-1
+Owner: zvik
+Attr1: bla1
+Attr2: bla2
+
+#NODES-DO-NOT-REMOVE-OR-MODIFY
+Instance	IP	Project	ClusterName	Contact	OS	InternaDNSName
+supp-lab-011	100.66.23.38	NA	NA	ETAD	CentOS	ip-100-66-23-38.eu-west-1.compute.internal
+supp-lab-012	100.66.23.224	NA	NA	ETAD	CentOS	ip-100-66-23-224.eu-west-1.compute.internal
+supp-lab-013	100.66.23.79	NA	NA	ETAD	CentOS	ip-100-66-23-79.eu-west-1.compute.internal
+supp-lab-014	100.66.20.195	NA	NA	ETAD	CentOS	ip-100-66-20-195.eu-west-1.compute.internal
+supp-lab-015	100.66.21.167	NA	NA	ETAD	CentOS	ip-100-66-21-167.eu-west-1.compute.internal
+

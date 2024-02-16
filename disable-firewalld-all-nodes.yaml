@@ -1,0 +1,18 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Disable firewalld on all nodes 
+  hosts: all 
+  vars:
+    sleep10: 10
+  remote_user: root
+
+  tasks:
+
+  - name: Disable firewalld 
+    ansible.builtin.systemd:
+      name: firewalld.service
+      state: stopped
+      enabled: no 
+

@@ -1,0 +1,146 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: Docker and K8s base install 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root
+
+  tasks:
+# 
+  - name: Removd old installs 
+    apt:
+      name: 
+        - docker
+        - docker-ce
+        - docker-ce-cli
+        - docker-engine
+        - docker.io
+        - containerd
+        - runc 
+      state: absent
+    ignore_errors: true 
+
+  - name: Install pre-requisites 
+    apt:
+      name: 
+        - ca-certificates 
+        - curl 
+        - gnupg 
+      state: present
+    ignore_errors: true 
+
+  - name: Create a directory if it does not exist
+    ansible.builtin.file:
+      path: /etc/apt/keyrings 
+      state: directory
+      mode: '0755'
+
+  - name: Copy docker.gpg 
+    copy:
+      src: "{{ assets }}/docker.gpg"
+      dest: /etc/apt/keyrings/docker.gpg
+      mode: '0666' 
+
+
+  - name: Copy docker-ce.repo 
+    copy:
+      src: "{{ assets }}/docker.list"
+      dest: /etc/apt/sources.list.d/docker.list 
+
+  - name: Exec apt update 
+    shell: apt-get update
+    #executable: /bin/bash
+
+  - name: Install docker 
+    apt:
+      name: 
+        - docker-ce={{ docker_version }}
+        - docker-ce-cli={{ docker_version }}
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin 
+      state: present
+
+  - name: Enable and restart docker
+    ansible.builtin.systemd:
+      name: docker.service
+      state: started
+      enabled: yes 
+
+  - name: Enable and restart containerd 
+    ansible.builtin.systemd:
+      name: containerd.service 
+      state: started
+      enabled: yes 
+  
+  - name: Copy proxy env file to sysconfig 
+    copy:
+      src: "{{ assets }}/{{ svc_env_proxy }}"
+      dest: "/etc/{{ svc_env_proxy }}"
+
+  - name: Copy script to add env sourcing to service
+    copy:
+      src: "{{ assets }}/add_env_to_service_att.py"
+      dest: "{{ remote_basedir }}/scripts"
+      mode: '0755'
+
+  - name: backup docker.service orig
+    copy:
+      src: /usr/lib/systemd/system/docker.service
+      dest: "{{ remote_basedir }}/bkp/docker.service.orig.{{ zdt }}"
+      remote_src: yes
+    ignore_errors: yes
+
+  - name: Exec add env sourcing to docker.service
+    shell: "{{ remote_basedir }}/scripts/add_env_to_service_att.py /usr/lib/systemd/system/docker.service"
+
+  - name: backup containerd.service orig
+    copy:
+      src: /usr/lib/systemd/system/containerd.service
+      dest: "{{ remote_basedir }}/bkp/containerd.service.orig.{{ zdt }}"
+      remote_src: yes
+    ignore_errors: yes
+
+  - name: Exec add env sourcing to containerd.service
+    shell: "{{ remote_basedir }}/scripts/add_env_to_service_att.py /usr/lib/systemd/system/containerd.service"
+
+  - name: Copy docker daemon.json for systemd usage and overlay 
+    copy:
+      src: "{{ assets }}//docker_daemon.json"
+      dest: /etc/docker/daemon.json
+
+  - name: Just force systemd to reread configs (2.4 and above)
+    ansible.builtin.systemd:
+      daemon_reload: yes 
+
+  - name: Restart containerd 
+    ansible.builtin.systemd:
+      name: containerd.service
+      state: restarted
+
+  - name: Sleep betwen containerd restart and docker restart
+    pause:
+      seconds: 10 
+
+  - name: Restart docker
+    ansible.builtin.systemd:
+      name: docker.service
+      state: restarted
+
+#########################
+#  - name: Copy k8s file for netfilter 
+#    copy:
+#      src: "{{ assets }}/k8s.conf.modules"
+#      dest: /etc/modules-load.d/k8s.conf
+

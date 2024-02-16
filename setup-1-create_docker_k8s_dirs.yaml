@@ -1,0 +1,26 @@
+---
+# To be run on master 
+- name: Create basic dirs on all VMs 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    varsfile: "{{ wd }}/proj_vars"
+  vars_files:
+    - "{{ varsfile }}"
+ 
+  remote_user: root
+
+  tasks:
+
+  - name: Create  docker_k8s dirs 
+    file:
+      path: "{{ item }}"
+      state: directory
+      mode: '0755'
+    with_items:
+      - "{{ remote_basedir }}/bkp"
+      - "{{ remote_basedir }}/cni"
+      - "{{ remote_basedir }}/storage"
+      - "{{ remote_basedir }}/scripts"
+

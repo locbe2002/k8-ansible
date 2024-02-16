@@ -1,0 +1,50 @@
+---
+# Run with: ansible-playbook -i inventory copy_files....yaml 
+#
+- name: Copy files /etc/bashrc and /etc/environment 
+  hosts: all 
+  vars:
+    dummy1: 80
+    dummy2: 200
+    wd: "{{ lookup('pipe', 'pwd') }}"
+  remote_user: root
+
+  tasks:
+
+  
+  - name: save copy of /etc/environment  to environment.010423
+    copy:
+      src: /etc/environment 
+      dest: /etc/environment.041623
+      remote_src: yes
+      owner: root 
+      group: root 
+      mode: 0644
+
+
+  - name: copy /etc/environment 
+    copy:
+      src: "{{ wd + '/assets/etc_environment.att' }}" 
+      dest: /etc/environment
+      owner: root 
+      group: root 
+      mode: 0644
+
+  - name: save copy of /etc/bashrc  to bashrc.010423
+    copy:
+      src: /etc/bash.bashrc
+      dest: /etc/bash.bashrc.041623
+      remote_src: yes
+      owner: root 
+      group: root 
+      mode: 0644
+
+  - name: copy /etc/bashrc 
+    copy:
+      src: "{{ wd + '/assets/etc_bash.bashrc.att' }}" 
+      dest: /etc/bash.bashrc
+      owner: root 
+      group: root 
+      mode: 0644
+
+

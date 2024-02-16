@@ -1,0 +1,53 @@
+---
+# Run with: ansible-playbook -i inventory pb1
+# To be run on all k8s cluster nodes...
+# TO Add: Disable SELinux, Disable firewalld, Disable swap...
+- name: ntp install 
+  hosts: all 
+  vars:
+    wd: "{{ lookup('pipe', 'pwd') }}"
+    assets: "{{ wd }}/assets"
+    sleep10: 10
+    varsfile: "{{ wd }}/proj_vars"
+    zdt: "{{ lookup('pipe', 'date  +\"%m%d%y_%H%M%S\"') }}"
+  vars_files:
+    - "{{ varsfile }}" 
+    #docker_version: 19.03.14
+    #kubernetes_version: 1.18.17
+  remote_user: root
+
+  tasks:
+# Following is needed if we work with Calico
+  - name: Backup orig ntp.conf 
+    copy:
+      src: /etc/ntp.conf
+      dest: /etc/ntp.conf.orig.030223
+      remote_src: yes
+    ignore_errors: yes
+
+  - name: Copy ntp.conf /etc/ntp.conf 
+    copy:
+      src: "{{ assets }}/ntp.conf"
+      dest: /etc/ntp.conf 
+
+  - name: Disable and stop chronyd 
+    ansible.builtin.systemd:
+      name: chronyd.service
+      state: stopped
+      enabled: false 
+
+  - name: Copy ntp script 
+    copy:
+      src: "{{ assets }}/set_ntp.bash"
+      dest: /root/docker_k8s/scripts
+      mode: 755
+
+  - name: Exec script
+    shell: /root/docker_k8s/scripts/set_ntp.bash
+
+    #  - name: Enable and restart ntp 
+    #ansible.builtin.systemd:
+    #  name: ntpd.service
+    #  state: restarted
+
+
